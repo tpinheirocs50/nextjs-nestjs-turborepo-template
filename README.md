@@ -7,8 +7,8 @@ A production-ready monorepo template with **Next.js 16**, **NestJS 11**, **Turbo
 ```
 .
 ├── apps/
-│   ├── web/              # Next.js 16 (App Router, Turbopack)
-│   └── api/              # NestJS 11
+│   ├── web/              # Next.js 16 (App Router, Turbopack, validated env)
+│   └── api/              # NestJS 11 (validated env)
 ├── packages/
 │   └── shared-types/     # Shared TypeScript types
 ├── turbo.json            # Turborepo task pipeline
@@ -33,6 +33,10 @@ A production-ready monorepo template with **Next.js 16**, **NestJS 11**, **Turbo
 ```bash
 # Install dependencies
 pnpm install
+
+# Copy env example files (defaults work for local dev)
+cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env
 
 # Start both apps in development mode
 pnpm dev
@@ -64,6 +68,33 @@ Run a script in a specific package only:
 pnpm --filter web dev
 pnpm --filter api test
 ```
+
+## Environment variables
+
+Both apps validate their environment variables at startup using [Zod](https://zod.dev/). If a required variable is missing or malformed, the app fails fast with a clear error message instead of crashing later at runtime.
+
+Example files are committed to the repo:
+
+- `apps/api/.env.example`
+- `apps/web/.env.example`
+
+Copy each one to a sibling `.env` file and adjust as needed:
+
+```bash
+cp apps/api/.env.example apps/api/.env
+cp apps/web/.env.example apps/web/.env
+```
+
+Sensible defaults are baked into the Zod schemas, so the apps run with no `.env` file at all in development. Override values via `.env` for production or non-default setups.
+
+### Adding a new env var
+
+1. Add it to the relevant `.env.example` file with a sensible default or placeholder
+2. Add it to the Zod schema in `apps/<app>/src/env.ts`
+3. Add the variable name to the `env` array in `turbo.json` so the build cache invalidates when its value changes
+4. Use it via `import { env } from "./env"` instead of `process.env`
+
+For the **web** app, prefix browser-visible vars with `NEXT_PUBLIC_` and add them to the client schema. Server-only vars go in the server schema.
 
 ## How the shared types work
 

@@ -1,8 +1,9 @@
+import { env } from "@/env";
 import type { HealthCheck } from "@repo/shared-types";
 
 async function getHealth(): Promise<HealthCheck | null> {
   try {
-    const res = await fetch("http://localhost:3001/health", {
+    const res = await fetch(`${env.NEXT_PUBLIC_API_URL}/health`, {
       cache: "no-store",
     });
     if (!res.ok) return null;
