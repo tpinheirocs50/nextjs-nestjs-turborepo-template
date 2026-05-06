@@ -11,6 +11,7 @@
         "PORT",
         "CORS_ORIGIN",
         "NEXT_PUBLIC_API_URL",
+        "INTERNAL_API_URL",
         "DATABASE_URL",
         "LOG_LEVEL"
       ]

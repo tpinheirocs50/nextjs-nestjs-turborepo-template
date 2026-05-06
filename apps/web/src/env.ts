@@ -4,6 +4,7 @@ const serverSchema = z.object({
   NODE_ENV: z
     .enum(["development", "production", "test"])
     .default("development"),
+  INTERNAL_API_URL: z.string().url().optional(),
 });
 
 const clientSchema = z.object({
@@ -15,6 +16,7 @@ const isServer = typeof window === "undefined";
 const processEnv = {
   NODE_ENV: process.env.NODE_ENV,
   NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+  INTERNAL_API_URL: process.env.INTERNAL_API_URL,
 };
 
 const parsed = isServer
