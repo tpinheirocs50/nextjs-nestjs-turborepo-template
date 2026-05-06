@@ -6,7 +6,13 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"],
-      "env": ["NODE_ENV", "PORT", "CORS_ORIGIN", "NEXT_PUBLIC_API_URL"]
+      "env": [
+        "NODE_ENV",
+        "PORT",
+        "CORS_ORIGIN",
+        "NEXT_PUBLIC_API_URL",
+        "DATABASE_URL"
+      ]
     },
     "dev": {
       "cache": false,

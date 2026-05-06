@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { z } from 'zod';
 
 const envSchema = z.object({
@@ -6,6 +7,7 @@ const envSchema = z.object({
     .default('development'),
   PORT: z.coerce.number().int().positive().default(3001),
   CORS_ORIGIN: z.string().url().default('http://localhost:3000'),
+  DATABASE_URL: z.string().url(),
 });
 
 const parsed = envSchema.safeParse(process.env);
