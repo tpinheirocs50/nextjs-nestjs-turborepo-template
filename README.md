@@ -22,6 +22,7 @@ A production-ready monorepo template with **Next.js 16**, **NestJS 11**, **Prism
 - **[NestJS 11](https://nestjs.com/)** — Progressive Node.js framework for the API
 - **[Prisma 7](https://www.prisma.io/)** — Type-safe database ORM with the new Rust-free client
 - **[PostgreSQL 17](https://www.postgresql.org/)** — Database, run locally via Docker
+- **[Pino](https://getpino.io/) logging** — Structured JSON logs in production, pretty-printed in dev, request context auto-attached
 - **[Turborepo 2.9](https://turborepo.dev/)** — Build system with intelligent caching
 - **[pnpm](https://pnpm.io/) workspaces** — Fast, disk-efficient package manager
 - **TypeScript 5.9** — Shared across all packages
@@ -152,6 +153,45 @@ export class MyService {
   constructor(private readonly prisma: PrismaService) {}
 }
 ```
+
+## Logging
+
+The api uses **[Pino](https://getpino.io/)** via [`nestjs-pino`](https://github.com/iamolegga/nestjs-pino) for structured logging.
+
+### What you get
+
+- **Pretty-printed in development** — colored, single-line output in the terminal
+- **Raw JSON in production** — log aggregators (Datadog, CloudWatch, Loki, etc.) parse it natively
+- **Automatic request context** — every log made during an HTTP request includes the request ID, method, URL, etc., letting you trace a single request across multiple log lines
+- **Auto-logged HTTP requests** — method, URL, status code, response time, and request ID logged for every call
+
+### Configuration
+
+The log level is controlled by `LOG_LEVEL` in `.env`. Valid values: `fatal`, `error`, `warn`, `info`, `debug`, `trace`, `silent`. Default is `info`.
+
+### Using the logger in your code
+
+Inject `PinoLogger` into any controller or service:
+
+```typescript
+import { InjectPinoLogger, PinoLogger } from 'nestjs-pino';
+
+@Injectable()
+export class MyService {
+  constructor(
+    @InjectPinoLogger(MyService.name)
+    private readonly logger: PinoLogger,
+  ) {}
+
+  doSomething() {
+    this.logger.info('Plain message');
+    this.logger.info({ userId: '123', action: 'login' }, 'Structured log');
+    this.logger.error({ err: new Error('boom') }, 'Something went wrong');
+  }
+}
+```
+
+The `@InjectPinoLogger(MyService.name)` decorator pre-tags every log with `context: "MyService"`, so you can filter by source class.
 
 ## How the shared types work
 
