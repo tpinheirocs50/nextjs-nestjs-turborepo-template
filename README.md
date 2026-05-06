@@ -10,7 +10,8 @@ A production-ready monorepo template with **Next.js 16**, **NestJS 11**, **Prism
 │   ├── web/              # Next.js 16 (App Router, Turbopack, validated env)
 │   └── api/              # NestJS 11 (Prisma 7 + Postgres, validated env)
 ├── packages/
-│   └── shared-types/     # Shared TypeScript types
+│   ├── shared-types/     # Shared TypeScript types
+│   └── api-client/       # Typed HTTP client for the API
 ├── docker-compose.yml    # Local Postgres for development
 ├── turbo.json            # Turborepo task pipeline
 └── pnpm-workspace.yaml   # pnpm workspace config
@@ -23,6 +24,7 @@ A production-ready monorepo template with **Next.js 16**, **NestJS 11**, **Prism
 - **[Prisma 7](https://www.prisma.io/)** — Type-safe database ORM with the new Rust-free client
 - **[PostgreSQL 17](https://www.postgresql.org/)** — Database, run locally via Docker
 - **[Pino](https://getpino.io/) logging** — Structured JSON logs in production, pretty-printed in dev, request context auto-attached
+- **Typed API client** — End-to-end type safety between web and api via a shared client package, no manual fetch
 - **[Turborepo 2.9](https://turborepo.dev/)** — Build system with intelligent caching
 - **[pnpm](https://pnpm.io/) workspaces** — Fast, disk-efficient package manager
 - **TypeScript 5.9** — Shared across all packages
@@ -192,6 +194,59 @@ export class MyService {
 ```
 
 The `@InjectPinoLogger(MyService.name)` decorator pre-tags every log with `context: "MyService"`, so you can filter by source class.
+
+## API client
+
+The web app calls the api through a typed client package (`@repo/api-client`) instead of using raw `fetch`. This gives you end-to-end type safety, centralized error handling, and one place to configure base URLs, timeouts, and headers.
+
+### Using it
+
+```typescript
+import { ApiError } from '@repo/api-client';
+import { api } from '@/lib/api';
+
+try {
+  const users = await api.users.list();
+  // users is typed as User[]
+} catch (error) {
+  if (error instanceof ApiError) {
+    // HTTP error from the api
+    console.error(error.status, error.message);
+  } else {
+    // Network error, timeout, etc.
+    console.error('Network error', error);
+  }
+}
+```
+
+### Adding a new endpoint
+
+When you add an endpoint to the NestJS api, also add it to the client so it's typed and reachable from the frontend:
+
+1. Add the endpoint method in `packages/api-client/src/api.ts`:
+
+```typescript
+   export const createApi = (client: ApiClient) => ({
+     users: {
+       list: () => client.get<User[]>('/users'),
+       get: (id: string) => client.get<User>(`/users/${id}`),  // new
+     },
+   });
+```
+
+2. Use it from the web app — autocomplete and types come for free:
+
+```typescript
+   const user = await api.users.get('abc123');
+```
+
+### Why a client package and not tRPC
+
+The api is a regular REST API exposed by NestJS. This means it can be consumed by any client — a future mobile app, a third-party integration, a CLI tool — not just the web app. The client package gives the web app a typed, ergonomic way to call it without locking the api into a TypeScript-only contract like tRPC would.
+
+### Server Components and dynamic rendering
+
+Pages that call the api (like `apps/web/src/app/page.tsx`) include `export const dynamic = 'force-dynamic'` so Next.js renders them on every request instead of trying to prerender at build time (which would fail because the api isn't running during the build). If your page doesn't depend on live api data, you can omit this and let Next.js prerender as usual.
 
 ## How the shared types work
 
