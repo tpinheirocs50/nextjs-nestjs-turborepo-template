@@ -11,7 +11,8 @@
         "PORT",
         "CORS_ORIGIN",
         "NEXT_PUBLIC_API_URL",
-        "DATABASE_URL"
+        "DATABASE_URL",
+        "LOG_LEVEL"
       ]
     },
     "dev": {
