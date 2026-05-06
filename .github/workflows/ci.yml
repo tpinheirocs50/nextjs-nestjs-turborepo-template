@@ -1,15 +1,77 @@
 name: CI
-on: [push, pull_request]
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
 jobs:
   build:
+    name: build
     runs-on: ubuntu-latest
-    env:
-      DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
     steps:
       - uses: actions/checkout@v4
+
       - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
-      - run: pnpm verify
+
+      - name: Verify
+        run: pnpm verify
+        env:
+          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+
+  docker:
+    name: docker
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build images
+        run: docker compose --profile full build
+
+      - name: Start the stack
+        run: docker compose --profile full up -d
+
+      - name: Wait for the stack to be ready
+        run: |
+          for i in {1..30}; do
+            api_ok=$(curl -fs http://localhost:3001/health > /dev/null && echo "ok" || echo "fail")
+            web_ok=$(curl -fs http://localhost:3000 > /dev/null && echo "ok" || echo "fail")
+            if [ "$api_ok" = "ok" ] && [ "$web_ok" = "ok" ]; then
+              echo "Stack is healthy"
+              exit 0
+            fi
+            echo "Waiting... (attempt $i/30) — api: $api_ok, web: $web_ok"
+            sleep 2
+          done
+          echo "Stack failed to become healthy"
+          docker compose --profile full ps
+          docker compose --profile full logs
+          exit 1
+
+      - name: Smoke-test endpoints
+        run: |
+          echo "Testing /health..."
+          curl -fsS http://localhost:3001/health | tee /tmp/health.json
+          grep -q '"status":"ok"' /tmp/health.json
+
+          echo "Testing /users..."
+          curl -fsS http://localhost:3001/users | tee /tmp/users.json
+          grep -q '^\[' /tmp/users.json
+
+          echo "Testing web app..."
+          curl -fsS http://localhost:3000 | grep -q "Monorepo Template"
+
+          echo "All smoke tests passed"
+
+      - name: Show logs (on failure)
+        if: failure()
+        run: docker compose --profile full logs
+
+      - name: Tear down
+        if: always()
+        run: docker compose --profile full down -v
