@@ -1,6 +1,6 @@
 # Next.js + NestJS Monorepo Template
 
-A production-ready monorepo template with **Next.js 16**, **NestJS 11**, **Prisma 7 + PostgreSQL**, **Turborepo**, and **pnpm workspaces**. Includes a working end-to-end example with shared TypeScript types and a real database query path between frontend and backend.
+A production-ready monorepo template with **Next.js 16**, **NestJS 11**, **Prisma 7 + PostgreSQL**, **Turborepo**, and **pnpm workspaces**. Includes a working end-to-end example with shared TypeScript types, structured logging, a typed API client, and production Dockerfiles for both apps.
 
 ## What's inside
 
@@ -8,11 +8,13 @@ A production-ready monorepo template with **Next.js 16**, **NestJS 11**, **Prism
 .
 ├── apps/
 │   ├── web/              # Next.js 16 (App Router, Turbopack, validated env)
-│   └── api/              # NestJS 11 (Prisma 7 + Postgres, validated env)
+│   └── api/              # NestJS 11 (Prisma 7 + Postgres, validated env, Pino logging)
 ├── packages/
 │   ├── shared-types/     # Shared TypeScript types
 │   └── api-client/       # Typed HTTP client for the API
-├── docker-compose.yml    # Local Postgres for development
+├── apps/api/Dockerfile   # Multi-stage production image for the api
+├── apps/web/Dockerfile   # Multi-stage production image for the web app
+├── docker-compose.yml    # Orchestrates Postgres, migrations, api, and web
 ├── turbo.json            # Turborepo task pipeline
 └── pnpm-workspace.yaml   # pnpm workspace config
 ```
@@ -29,12 +31,13 @@ A production-ready monorepo template with **Next.js 16**, **NestJS 11**, **Prism
 - **[pnpm](https://pnpm.io/) workspaces** — Fast, disk-efficient package manager
 - **TypeScript 5.9** — Shared across all packages
 - **Zod-validated env** — Both apps fail fast if their environment is misconfigured
+- **Production Dockerfiles** — Multi-stage builds for both apps, orchestrated via Compose
 
 ## Prerequisites
 
 - **Node.js 20 LTS** or newer (an `.nvmrc` file is included — run `nvm use`)
 - **pnpm 9** or newer (`npm install -g pnpm`)
-- **Docker** with Docker Compose v2 (for the local Postgres database)
+- **Docker** with Docker Compose v2 (for Postgres in dev, and the full Docker workflow)
 
 ## Quick start
 
@@ -83,6 +86,11 @@ All scripts run from the repo root and operate across the workspace via Turborep
 | `pnpm --filter api db:migrate` | Apply migrations and regenerate the Prisma client |
 | `pnpm --filter api db:seed` | Insert demo data |
 | `pnpm --filter api db:studio` | Launch Prisma Studio to browse the database |
+| `pnpm docker:build` | Build production images for api and web |
+| `pnpm docker:up` | Start the full stack in Docker (Postgres + migrate + api + web) |
+| `pnpm docker:up:detached` | Same as above, but run in the background |
+| `pnpm docker:down` | Stop and remove all containers |
+| `pnpm docker:logs` | Follow logs from all running containers |
 
 Run a script in a specific package only:
 
@@ -108,6 +116,8 @@ cp apps/web/.env.example apps/web/.env
 ```
 
 Sensible defaults are baked into the Zod schemas, so most apps run with no edits to `.env` in development. The exception is `DATABASE_URL` — there's no sensible fallback for a database, so it's required.
+
+The api loads `.env` files only when `NODE_ENV !== 'production'`. In production (Docker, Railway, AWS, etc.), env vars are expected to come from the host environment directly, not from a `.env` file. This keeps the production image free of dotenv as a runtime dependency.
 
 ### Adding a new env var
 
@@ -226,27 +236,101 @@ When you add an endpoint to the NestJS api, also add it to the client so it's ty
 1. Add the endpoint method in `packages/api-client/src/api.ts`:
 
 ```typescript
-   export const createApi = (client: ApiClient) => ({
-     users: {
-       list: () => client.get<User[]>('/users'),
-       get: (id: string) => client.get<User>(`/users/${id}`),  // new
-     },
-   });
+export const createApi = (client: ApiClient) => ({
+  users: {
+    list: () => client.get<User[]>('/users'),
+    get: (id: string) => client.get<User>(`/users/${id}`),  // new
+  },
+});
 ```
 
 2. Use it from the web app — autocomplete and types come for free:
 
 ```typescript
-   const user = await api.users.get('abc123');
+const user = await api.users.get('abc123');
 ```
 
 ### Why a client package and not tRPC
 
 The api is a regular REST API exposed by NestJS. This means it can be consumed by any client — a future mobile app, a third-party integration, a CLI tool — not just the web app. The client package gives the web app a typed, ergonomic way to call it without locking the api into a TypeScript-only contract like tRPC would.
 
+### Server-side vs browser URLs
+
+The web app is configured with two separate URLs to talk to the api:
+
+- **`NEXT_PUBLIC_API_URL`** — used by the browser. In Docker, this maps to the host's port forward (`http://localhost:3001`).
+- **`INTERNAL_API_URL`** — used server-side (Server Components, Route Handlers). In Docker, this is the container-network hostname (`http://api:3001`).
+
+`apps/web/src/lib/api.ts` checks `typeof window === 'undefined'` to decide which one to use. For local dev (`pnpm dev`), only `NEXT_PUBLIC_API_URL` is set and both contexts use the same value.
+
 ### Server Components and dynamic rendering
 
 Pages that call the api (like `apps/web/src/app/page.tsx`) include `export const dynamic = 'force-dynamic'` so Next.js renders them on every request instead of trying to prerender at build time (which would fail because the api isn't running during the build). If your page doesn't depend on live api data, you can omit this and let Next.js prerender as usual.
+
+## Docker
+
+The template includes production Dockerfiles for both apps and a `docker-compose.yml` that orchestrates the entire stack: Postgres, migrations, api, and web.
+
+### Local development workflow (unchanged)
+
+For day-to-day development, you run apps locally and Docker only hosts Postgres:
+
+```bash
+pnpm db:up        # Postgres in Docker
+pnpm dev          # api + web running locally via Turborepo
+```
+
+### Full stack in Docker
+
+To run the entire production-built stack in Docker (useful for testing the production environment, or as a deployment-shaped sanity check):
+
+```bash
+pnpm docker:build    # Build all images
+pnpm docker:up       # Start the full stack
+```
+
+This brings up four containers in order:
+
+1. **`postgres`** on port 5432 — waits for healthcheck before continuing
+2. **`migrate`** — runs `prisma migrate deploy` against the empty database, then exits with code 0
+3. **`api`** on port 3001 — starts only after `migrate` completes successfully
+4. **`web`** on port 3000 — starts only after `api` is up
+
+Open `http://localhost:3000` to see the running app.
+
+To stop:
+
+```bash
+pnpm docker:down
+```
+
+To stop and wipe the database volume (start completely fresh):
+
+```bash
+docker compose --profile full down -v
+```
+
+### How the migrate service works
+
+The `migrate` service is a one-shot job container — not a long-running service. It builds from the api's Dockerfile but stops at the `builder` stage (which still has the Prisma CLI), runs `prisma migrate deploy` against Postgres, and exits cleanly. The `api` service uses `depends_on: migrate: condition: service_completed_successfully` to wait until migrations finish before starting.
+
+This pattern mirrors how production deployments handle migrations on Kubernetes (Helm hooks), AWS ECS (run-task), or platform-managed services (Railway, Fly): a dedicated migration step runs before the app containers, and the app containers refuse to start if migrations fail. The compose setup gives you the same guarantees locally.
+
+### Image sizes
+
+- **API**: ~404MB (~150MB Node Alpine + ~250MB Prisma 7 runtime + ~5MB app)
+- **Web**: ~205MB (Node Alpine + Next.js standalone bundle)
+
+The api image is heavier than ideal due to [Prisma 7's bloated dependency graph](https://github.com/prisma/prisma/discussions/28787) — a known upstream issue that the Prisma team has acknowledged. The Dockerfile includes a workaround that strips dev-only Prisma packages (Prisma Studio, `@prisma/dev`, etc.) post-install to claw back ~50MB. When Prisma fixes this upstream, the workaround can be removed.
+
+### Profile-based separation
+
+The `docker-compose.yml` uses Compose [profiles](https://docs.docker.com/compose/profiles/) so the dev workflow keeps working unchanged:
+
+- **No profile (default)** — only Postgres runs. This is what `pnpm db:up` invokes.
+- **`full` profile** — runs Postgres + migrate + api + web. This is what `pnpm docker:up` invokes via `docker compose --profile full up`.
+
+This means you don't have to choose between "compose for dev" and "compose for production-shape testing" — one file does both.
 
 ## How the shared types work
 
@@ -270,14 +354,14 @@ getHealth(): HealthCheck {
 }
 ```
 
-The Next.js page consumes it:
+The Next.js page consumes it through the api client:
 
 ```typescript
 // apps/web/src/app/page.tsx
 import type { HealthCheck } from "@repo/shared-types";
+import { api } from "@/lib/api";
 
-const res = await fetch("http://localhost:3001/health");
-const health: HealthCheck = await res.json();
+const health: HealthCheck = await api.health.get();
 ```
 
 Change a field in `shared-types`, and TypeScript will flag it across both apps.
@@ -325,10 +409,23 @@ For CI speed, consider enabling Turborepo Remote Cache (see above) — it can re
 
 ## Production deployment
 
-Each app deploys independently:
+Each app has a working production Dockerfile. Two common deployment shapes:
 
-- **Web (Next.js)** — Deploy `apps/web` to Vercel, Netlify, or any Node.js host. Set the build command to `pnpm turbo run build --filter=web` and the install command to `pnpm install --frozen-lockfile`.
-- **API (NestJS)** — Build with `pnpm turbo run build --filter=api`, then run `node apps/api/dist/main.js`. Containerize with Docker, or deploy to Railway, Render, Fly.io, etc. The API expects a managed Postgres instance in production; set `DATABASE_URL` to your provider's connection string.
+### Container-based (Railway, Fly.io, Render, AWS ECS, Kubernetes)
+
+```bash
+docker build -f apps/api/Dockerfile -t my-api:latest .
+docker build -f apps/web/Dockerfile --build-arg NEXT_PUBLIC_API_URL=https://api.example.com -t my-web:latest .
+```
+
+Push to your registry, deploy. Provide `DATABASE_URL`, `CORS_ORIGIN`, and other env vars at runtime via your platform's secret manager. Run migrations as a separate one-shot job (the `migrate` service in `docker-compose.yml` shows the pattern).
+
+### Vercel + managed backend
+
+- **Web** — Deploy `apps/web` to Vercel directly. Set the build command to `pnpm turbo run build --filter=web` and the install command to `pnpm install --frozen-lockfile`. No Dockerfile needed for this path.
+- **API** — Deploy via Docker to Railway, Fly, Render, etc. The Dockerfile in `apps/api/Dockerfile` is ready to use.
+
+The api expects a managed Postgres instance in production; set `DATABASE_URL` to your provider's connection string (Neon, Supabase, RDS, etc.).
 
 ## Common tasks
 
@@ -368,6 +465,12 @@ Check whether you have a VPN or proxy running (Cloudflare WARP, NordVPN, ZeroTru
 
 **Type errors in `apps/api/src/prisma/generated/`.**
 The generated client is regenerated automatically on `pnpm install` (via the api's `postinstall` hook). If types still look wrong, regenerate manually with `pnpm --filter api db:generate`.
+
+**`fetch failed` / `ECONNREFUSED` from the web container when running the full Docker stack.**
+The web app uses `NEXT_PUBLIC_API_URL` for browser calls and `INTERNAL_API_URL` for server-side calls. Make sure both are set in `docker-compose.yml`'s `web` service — `NEXT_PUBLIC_API_URL=http://localhost:3001` and `INTERNAL_API_URL=http://api:3001`. Without `INTERNAL_API_URL`, Server Components try to reach the api at `localhost` from inside the web container, which doesn't work.
+
+**Docker image for the api is unexpectedly large.**
+Prisma 7 has a [known dependency-graph regression](https://github.com/prisma/prisma/discussions/28787) that bloats the production image by ~50MB. The Dockerfile already strips `@prisma/dev`, `@prisma/studio-core`, and similar dev-only packages post-install. If the issue is fixed upstream in a future Prisma release, you can remove the cleanup step in `apps/api/Dockerfile`.
 
 ## License
 
