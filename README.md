@@ -50,11 +50,10 @@ pnpm install
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env
 
-# Start the database
-pnpm db:up
+# Start Postgres and apply migrations
+pnpm db:setup
 
-# Run migrations and seed initial data
-pnpm --filter api db:migrate
+# Insert demo data (optional)
 pnpm --filter api db:seed
 
 # Start both apps in development mode
@@ -84,6 +83,7 @@ All scripts run from the repo root and operate across the workspace via Turborep
 | `pnpm db:up` | Start the local Postgres database (Docker) |
 | `pnpm db:down` | Stop the database (data persists) |
 | `pnpm db:reset` | Destroy and recreate the database (fresh start) |
+| `pnpm db:setup` | Start Postgres and apply migrations (combines `db:up` + `db:migrate`) |
 | `pnpm --filter api db:migrate` | Apply migrations and regenerate the Prisma client |
 | `pnpm --filter api db:seed` | Insert demo data |
 | `pnpm --filter api db:studio` | Launch Prisma Studio to browse the database |
