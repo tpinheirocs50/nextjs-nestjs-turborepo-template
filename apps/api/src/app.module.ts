@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
+import { AuthModule } from '@thallesp/nestjs-better-auth';
 import { AppController } from './app.controller';
+import { createAuth } from './auth/auth.config';
 import { env } from './env';
 import { PrismaModule } from './prisma/prisma.module';
-import { UsersController } from './users/users.controller';
+import { PrismaService } from './prisma/prisma.service';
 
 @Module({
   imports: [
@@ -29,8 +31,15 @@ import { UsersController } from './users/users.controller';
       },
     }),
     PrismaModule,
+    AuthModule.forRootAsync({
+      imports: [PrismaModule],
+      inject: [PrismaService],
+      useFactory: (prisma: PrismaService) => ({
+        auth: createAuth(prisma),
+      }),
+    }),
   ],
-  controllers: [AppController, UsersController],
+  controllers: [AppController],
   providers: [],
 })
 export class AppModule {}

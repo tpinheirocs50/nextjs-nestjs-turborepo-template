@@ -59,9 +59,9 @@ jobs:
           curl -fsS http://localhost:3001/health | tee /tmp/health.json
           grep -q '"status":"ok"' /tmp/health.json
 
-          echo "Testing /users..."
-          curl -fsS http://localhost:3001/users | tee /tmp/users.json
-          grep -q '^\[' /tmp/users.json
+          echo "Testing /api/auth/ok..."
+          curl -fsS http://localhost:3001/api/auth/ok | tee /tmp/auth.json
+          grep -q '"ok":true' /tmp/auth.json
 
           echo "Testing web app..."
           curl -fsS http://localhost:3000 | grep -q "Monorepo Template"
