@@ -58,6 +58,8 @@ services:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/monorepo
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-development-secret-at-least-32-characters-long}
       BETTER_AUTH_URL: http://localhost:3001
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
 
   web:
     image: nextjs-nestjs-turborepo-template-web:latest
