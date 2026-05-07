@@ -24,6 +24,14 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((v) => (v === '' ? undefined : v)),
+  GITHUB_CLIENT_ID: z
+    .string()
+    .optional()
+    .transform((v) => (v === '' ? undefined : v)),
+  GITHUB_CLIENT_SECRET: z
+    .string()
+    .optional()
+    .transform((v) => (v === '' ? undefined : v)),
 });
 
 const parsed = envSchema.safeParse(process.env);

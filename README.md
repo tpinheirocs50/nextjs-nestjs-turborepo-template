@@ -1,6 +1,6 @@
 # Next.js + NestJS Monorepo Template
 
-A production-ready monorepo template with **Next.js 16**, **NestJS 11**, **Prisma 7 + PostgreSQL**, **Better Auth**, **Turborepo**, and **pnpm workspaces**. Includes a working end-to-end example with shared TypeScript types, structured logging, a typed API client, email/password and Google OAuth authentication, and production Dockerfiles for both apps.
+A production-ready monorepo template with **Next.js 16**, **NestJS 11**, **Prisma 7 + PostgreSQL**, **Better Auth**, **Turborepo**, and **pnpm workspaces**. Includes a working end-to-end example with shared TypeScript types, structured logging, a typed API client, email/password, Google, and GitHub authentication, and production Dockerfiles for both apps.
 
 ## What's inside
 
@@ -270,12 +270,13 @@ Pages that call the api (like `apps/web/src/app/page.tsx`) include `export const
 
 ## Authentication
 
-The template ships with email/password and Google OAuth via **[Better Auth](https://better-auth.com/)**, integrated into NestJS through `@thallesp/nestjs-better-auth` and into Next.js via Better Auth's React client.
+The template ships with email/password, Google OAuth, and GitHub OAuth via **[Better Auth](https://better-auth.com/)**, integrated into NestJS through `@thallesp/nestjs-better-auth` and into Next.js via Better Auth's React client.
 
 ### What's included
 
 - **Email and password** sign-up and sign-in with secure password hashing
 - **Google OAuth** (optional — enabled when `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set)
+- **GitHub OAuth** (optional — enabled when `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` are set)
 - **Database-backed sessions** via cookies (HTTP-only, SameSite=Lax, 7-day expiry by default)
 - **Auto-sign-in on sign-up** so new users go straight to the dashboard
 - **`useSession()` hook** for reactive session state in client components
@@ -305,7 +306,21 @@ Google OAuth is optional. To enable it:
 
 Without these env vars, the Google provider is silently skipped and only email/password auth is available.
 
-To add other OAuth providers (GitHub, Apple, etc.), follow the same pattern in `apps/api/src/auth/auth.config.ts` — Better Auth's `socialProviders` config accepts any of its [supported providers](https://better-auth.com/docs/concepts/oauth).
+### GitHub OAuth setup
+
+GitHub OAuth is optional. To enable it:
+
+1. Go to [GitHub Developer Settings](https://github.com/settings/developers) and click **OAuth Apps → New OAuth App**
+2. Set:
+   - **Homepage URL**: `http://localhost:3000`
+   - **Authorization callback URL**: `http://localhost:3001/api/auth/callback/github`
+3. Click **Register application**
+4. Copy the **Client ID** and click **Generate a new client secret**
+5. Add `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` to `apps/api/.env`
+
+Without these env vars, the GitHub provider is silently skipped.
+
+To add other OAuth providers (Apple, etc.), follow the same pattern in `apps/api/src/auth/auth.config.ts` — Better Auth's `socialProviders` config accepts any of its [supported providers](https://better-auth.com/docs/concepts/oauth).
 
 ### Where things live
 

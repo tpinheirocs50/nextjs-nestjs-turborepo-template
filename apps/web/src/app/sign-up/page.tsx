@@ -48,6 +48,18 @@ export default function SignUpPage() {
     }
   }
 
+  async function handleGitHubSignUp() {
+    setError(null);
+    const { error } = await signIn.social({
+      provider: "github",
+      callbackURL: `${window.location.origin}/dashboard`,
+    });
+
+    if (error) {
+      setError(error.message ?? "GitHub sign-up failed");
+    }
+  }
+
   return (
     <main style={{ padding: "2rem", fontFamily: "system-ui", maxWidth: 400 }}>
       <h1>Sign up</h1>
@@ -102,20 +114,38 @@ export default function SignUpPage() {
         — or —
       </div>
 
-      <button
-        type="button"
-        onClick={handleGoogleSignUp}
-        style={{
-          padding: "0.75rem",
-          cursor: "pointer",
-          width: "100%",
-          background: "white",
-          border: "1px solid #ccc",
-          borderRadius: "4px",
-        }}
-      >
-        Sign up with Google
-      </button>
+      <div style={{ display: "grid", gap: "0.5rem" }}>
+        <button
+          type="button"
+          onClick={handleGoogleSignUp}
+          style={{
+            padding: "0.75rem",
+            cursor: "pointer",
+            width: "100%",
+            background: "white",
+            border: "1px solid #ccc",
+            borderRadius: "4px",
+          }}
+        >
+          Sign up with Google
+        </button>
+
+        <button
+          type="button"
+          onClick={handleGitHubSignUp}
+          style={{
+            padding: "0.75rem",
+            cursor: "pointer",
+            width: "100%",
+            background: "#24292f",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+          }}
+        >
+          Sign up with GitHub
+        </button>
+      </div>
 
       {error && <p style={{ color: "crimson", marginTop: "1rem" }}>{error}</p>}
 
