@@ -14,6 +14,8 @@ const envSchema = z.object({
   LOG_LEVEL: z
     .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
     .default('info'),
+  BETTER_AUTH_SECRET: z.string().min(32, 'must be at least 32 characters'),
+  BETTER_AUTH_URL: z.string().url().default('http://localhost:3001'),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -56,6 +56,8 @@ services:
       LOG_LEVEL: info
       CORS_ORIGIN: http://localhost:3000
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/monorepo
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-development-secret-at-least-32-characters-long}
+      BETTER_AUTH_URL: http://localhost:3001
 
   web:
     image: nextjs-nestjs-turborepo-template-web:latest

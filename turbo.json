@@ -13,7 +13,9 @@
         "NEXT_PUBLIC_API_URL",
         "INTERNAL_API_URL",
         "DATABASE_URL",
-        "LOG_LEVEL"
+        "LOG_LEVEL",
+        "BETTER_AUTH_SECRET",
+        "BETTER_AUTH_URL"
       ]
     },
     "dev": {
