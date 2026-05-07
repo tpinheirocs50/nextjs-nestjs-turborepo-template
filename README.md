@@ -1,6 +1,6 @@
 # Next.js + NestJS Monorepo Template
 
-A production-ready monorepo template with **Next.js 16**, **NestJS 11**, **Prisma 7 + PostgreSQL**, **Better Auth**, **Turborepo**, and **pnpm workspaces**. Includes a working end-to-end example with shared TypeScript types, structured logging, a typed API client, email/password authentication, and production Dockerfiles for both apps.
+A production-ready monorepo template with **Next.js 16**, **NestJS 11**, **Prisma 7 + PostgreSQL**, **Better Auth**, **Turborepo**, and **pnpm workspaces**. Includes a working end-to-end example with shared TypeScript types, structured logging, a typed API client, email/password and Google OAuth authentication, and production Dockerfiles for both apps.
 
 ## What's inside
 
@@ -270,16 +270,19 @@ Pages that call the api (like `apps/web/src/app/page.tsx`) include `export const
 
 ## Authentication
 
-The template ships with email/password auth via **[Better Auth](https://better-auth.com/)**, integrated into NestJS through `@thallesp/nestjs-better-auth` and into Next.js via Better Auth's React client.
+The template ships with email/password and Google OAuth via **[Better Auth](https://better-auth.com/)**, integrated into NestJS through `@thallesp/nestjs-better-auth` and into Next.js via Better Auth's React client.
 
 ### What's included
 
 - **Email and password** sign-up and sign-in with secure password hashing
+- **Google OAuth** (optional — enabled when `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set)
 - **Database-backed sessions** via cookies (HTTP-only, SameSite=Lax, 7-day expiry by default)
 - **Auto-sign-in on sign-up** so new users go straight to the dashboard
 - **`useSession()` hook** for reactive session state in client components
 - **Next.js 16 proxy** that redirects unauthenticated requests away from protected routes (e.g., `/dashboard`)
-- **Three working pages**: `/sign-up`, `/sign-in`, `/dashboard`
+- **Global `AuthGuard`** on the api — every endpoint requires auth unless explicitly marked `@AllowAnonymous()` or `@OptionalAuth()`
+- **`@Session()` decorator** for typed access to the current user inside controllers
+- **Sample protected endpoint** — `GET /me` returns the current session, demonstrating server-side auth
 
 ### Configuration
 
@@ -289,6 +292,20 @@ Two new env vars in `apps/api/.env`:
 - `BETTER_AUTH_URL` — the public URL of the api (default `http://localhost:3001`).
 
 The web app reaches Better Auth's endpoints via `NEXT_PUBLIC_API_URL` (already configured for the API client).
+
+### Google OAuth setup
+
+Google OAuth is optional. To enable it:
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com/) and create a project (or use an existing one)
+2. Configure the OAuth consent screen (Google Auth platform → Overview)
+3. Create OAuth 2.0 credentials (Web application)
+4. Add authorized redirect URI: `http://localhost:3001/api/auth/callback/google` (and your production callback URL when applicable)
+5. Add `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` to `apps/api/.env`
+
+Without these env vars, the Google provider is silently skipped and only email/password auth is available.
+
+To add other OAuth providers (GitHub, Apple, etc.), follow the same pattern in `apps/api/src/auth/auth.config.ts` — Better Auth's `socialProviders` config accepts any of its [supported providers](https://better-auth.com/docs/concepts/oauth).
 
 ### Where things live
 

@@ -34,6 +34,18 @@ export default function SignInPage() {
     router.push("/dashboard");
   }
 
+  async function handleGoogleSignIn() {
+    setError(null);
+    const { error } = await signIn.social({
+      provider: "google",
+      callbackURL: `${window.location.origin}/dashboard`,
+    });
+
+    if (error) {
+      setError(error.message ?? "Google sign-in failed");
+    }
+  }
+
   return (
     <main style={{ padding: "2rem", fontFamily: "system-ui", maxWidth: 400 }}>
       <h1>Sign in</h1>
@@ -66,6 +78,31 @@ export default function SignInPage() {
           {isPending ? "Signing in…" : "Sign in"}
         </button>
       </form>
+
+      <div
+        style={{
+          textAlign: "center",
+          color: "#666",
+          margin: "1.5rem 0 1rem",
+        }}
+      >
+        — or —
+      </div>
+
+      <button
+        type="button"
+        onClick={handleGoogleSignIn}
+        style={{
+          padding: "0.75rem",
+          cursor: "pointer",
+          width: "100%",
+          background: "white",
+          border: "1px solid #ccc",
+          borderRadius: "4px",
+        }}
+      >
+        Sign in with Google
+      </button>
 
       {error && <p style={{ color: "crimson", marginTop: "1rem" }}>{error}</p>}
 

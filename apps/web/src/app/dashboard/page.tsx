@@ -1,18 +1,52 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "@/lib/auth-client";
+import { env } from "@/env";
+
+interface Me {
+  user: {
+    id: string;
+    email: string;
+    name: string;
+    emailVerified: boolean;
+    image: string | null;
+  };
+  session: {
+    id: string;
+    expiresAt: string;
+  };
+}
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { data: session, isPending } = useSession();
+  const { data: session, isPending: sessionPending } = useSession();
+  const [me, setMe] = useState<Me | null>(null);
+  const [meError, setMeError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!session) return;
+
+    fetch(`${env.NEXT_PUBLIC_API_URL}/me`, { credentials: "include" })
+      .then(async (res) => {
+        if (!res.ok) {
+          throw new Error(`API returned ${res.status}`);
+        }
+        return res.json();
+      })
+      .then((data: Me) => setMe(data))
+      .catch((err: unknown) =>
+        setMeError(err instanceof Error ? err.message : "Failed to fetch /me"),
+      );
+  }, [session]);
 
   async function handleSignOut() {
     await signOut();
     router.push("/");
   }
 
-  if (isPending) {
+  if (sessionPending) {
     return (
       <main style={{ padding: "2rem", fontFamily: "system-ui" }}>
         <p>Loading…</p>
@@ -38,15 +72,27 @@ export default function DashboardPage() {
         Signed in as <strong>{session.user.email}</strong>
       </p>
 
-      <pre
-        style={{
-          background: "#f4f4f4",
-          padding: "1rem",
-          marginTop: "1rem",
-        }}
-      >
-        {JSON.stringify(session, null, 2)}
-      </pre>
+      <h2 style={{ marginTop: "2rem" }}>Authenticated API call</h2>
+      <p style={{ color: "#666" }}>
+        This data came from <code>GET /me</code>, a protected NestJS endpoint
+        that uses the <code>@Session()</code> decorator from{" "}
+        <code>@thallesp/nestjs-better-auth</code>.
+      </p>
+
+      {meError && (
+        <p style={{ color: "crimson" }}>Error fetching /me: {meError}</p>
+      )}
+
+      {me && (
+        <pre
+          style={{
+            background: "#f4f4f4",
+            padding: "1rem",
+          }}
+        >
+          {JSON.stringify(me, null, 2)}
+        </pre>
+      )}
 
       <button
         type="button"

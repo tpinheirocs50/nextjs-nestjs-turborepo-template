@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
-import { signUp } from "@/lib/auth-client";
+import { signIn, signUp } from "@/lib/auth-client";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -34,6 +34,18 @@ export default function SignUpPage() {
     }
 
     router.push("/dashboard");
+  }
+
+  async function handleGoogleSignUp() {
+    setError(null);
+    const { error } = await signIn.social({
+      provider: "google",
+      callbackURL: `${window.location.origin}/dashboard`,
+    });
+
+    if (error) {
+      setError(error.message ?? "Google sign-up failed");
+    }
   }
 
   return (
@@ -79,6 +91,31 @@ export default function SignUpPage() {
           {isPending ? "Signing up…" : "Sign up"}
         </button>
       </form>
+
+      <div
+        style={{
+          textAlign: "center",
+          color: "#666",
+          margin: "1.5rem 0 1rem",
+        }}
+      >
+        — or —
+      </div>
+
+      <button
+        type="button"
+        onClick={handleGoogleSignUp}
+        style={{
+          padding: "0.75rem",
+          cursor: "pointer",
+          width: "100%",
+          background: "white",
+          border: "1px solid #ccc",
+          borderRadius: "4px",
+        }}
+      >
+        Sign up with Google
+      </button>
 
       {error && <p style={{ color: "crimson", marginTop: "1rem" }}>{error}</p>}
 

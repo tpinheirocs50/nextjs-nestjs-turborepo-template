@@ -4,6 +4,16 @@ import type { PrismaClient } from '../prisma/generated/client';
 import { env } from '../env';
 
 export function createAuth(prisma: PrismaClient) {
+  const socialProviders: Parameters<typeof betterAuth>[0]['socialProviders'] =
+    {};
+
+  if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
+    socialProviders.google = {
+      clientId: env.GOOGLE_CLIENT_ID,
+      clientSecret: env.GOOGLE_CLIENT_SECRET,
+    };
+  }
+
   return betterAuth({
     database: prismaAdapter(prisma, {
       provider: 'postgresql',
@@ -15,6 +25,7 @@ export function createAuth(prisma: PrismaClient) {
       enabled: true,
       autoSignIn: true,
     },
+    socialProviders,
     trustedOrigins: [env.CORS_ORIGIN],
   });
 }

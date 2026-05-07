@@ -6,6 +6,7 @@ import { createAuth } from './auth/auth.config';
 import { env } from './env';
 import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
+import { MeController } from './me/me.controller';
 
 @Module({
   imports: [
@@ -39,7 +40,7 @@ import { PrismaService } from './prisma/prisma.service';
       }),
     }),
   ],
-  controllers: [AppController],
+  controllers: [AppController, MeController],
   providers: [],
 })
 export class AppModule {}
