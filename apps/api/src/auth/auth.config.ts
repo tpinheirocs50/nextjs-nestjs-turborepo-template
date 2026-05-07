@@ -14,6 +14,13 @@ export function createAuth(prisma: PrismaClient) {
     };
   }
 
+  if (env.GITHUB_CLIENT_ID && env.GITHUB_CLIENT_SECRET) {
+    socialProviders.github = {
+      clientId: env.GITHUB_CLIENT_ID,
+      clientSecret: env.GITHUB_CLIENT_SECRET,
+    };
+  }
+
   return betterAuth({
     database: prismaAdapter(prisma, {
       provider: 'postgresql',
