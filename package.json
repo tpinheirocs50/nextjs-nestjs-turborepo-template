@@ -12,6 +12,7 @@
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:reset": "docker compose down -v && docker compose up -d",
+    "db:setup": "docker compose up -d --wait postgres && pnpm --filter api db:migrate",
     "docker:build": "docker compose --profile full build",
     "docker:up": "docker compose --profile full up",
     "docker:up:detached": "docker compose --profile full up -d",
