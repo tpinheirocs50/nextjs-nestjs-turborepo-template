@@ -8,6 +8,8 @@ import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
 import { MeController } from './me/me.controller';
 import { EchoController } from './echo/echo.controller';
+import { EmailModule } from './email/email.module';
+import { EmailService } from './email/email.service';
 
 @Module({
   imports: [
@@ -34,10 +36,10 @@ import { EchoController } from './echo/echo.controller';
     }),
     PrismaModule,
     AuthModule.forRootAsync({
-      imports: [PrismaModule],
-      inject: [PrismaService],
-      useFactory: (prisma: PrismaService) => ({
-        auth: createAuth(prisma),
+      imports: [PrismaModule, EmailModule],
+      inject: [PrismaService, EmailService],
+      useFactory: (prisma: PrismaService, email: EmailService) => ({
+        auth: createAuth(prisma, email),
       }),
     }),
   ],

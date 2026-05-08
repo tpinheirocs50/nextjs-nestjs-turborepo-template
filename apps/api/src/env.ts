@@ -32,6 +32,11 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((v) => (v === '' ? undefined : v)),
+  RESEND_API_KEY: z
+    .string()
+    .optional()
+    .transform((v) => (v === '' ? undefined : v)),
+  EMAIL_FROM: z.string().email().default('onboarding@resend.dev'),
 });
 
 const parsed = envSchema.safeParse(process.env);
