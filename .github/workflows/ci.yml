@@ -28,6 +28,8 @@ jobs:
   docker:
     name: docker
     runs-on: ubuntu-latest
+    env:
+      BETTER_AUTH_SECRET: ci-docker-placeholder-must-be-at-least-32-chars
     steps:
       - uses: actions/checkout@v4
 
