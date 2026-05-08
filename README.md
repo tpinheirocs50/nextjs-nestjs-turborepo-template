@@ -290,6 +290,7 @@ The template ships with email/password, Google OAuth, and GitHub OAuth via **[Be
 ### What's included
 
 - **Email and password** sign-up and sign-in with secure password hashing
+- **Email verification** via Resend (optional — auto-enabled when `RESEND_API_KEY` is set)
 - **Google OAuth** (optional — enabled when `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` are set)
 - **GitHub OAuth** (optional — enabled when `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` are set)
 - **Database-backed sessions** via cookies (HTTP-only, SameSite=Lax, 7-day expiry by default)
@@ -336,6 +337,21 @@ GitHub OAuth is optional. To enable it:
 Without these env vars, the GitHub provider is silently skipped.
 
 To add other OAuth providers (Apple, etc.), follow the same pattern in `apps/api/src/auth/auth.config.ts` — Better Auth's `socialProviders` config accepts any of its [supported providers](https://better-auth.com/docs/concepts/oauth).
+
+### Email setup (Resend)
+
+Email features (verification, password reset) are optional. To enable them:
+
+1. Sign up at [Resend](https://resend.com/signup) (free tier: 3,000 emails/month)
+2. Generate an API key at [API Keys](https://resend.com/api-keys)
+3. Add to `apps/api/.env`:
+
+       RESEND_API_KEY=re_your_api_key_here
+       EMAIL_FROM=onboarding@resend.dev
+
+Without `RESEND_API_KEY`, email features are silently disabled and outgoing emails are logged to the console for development. Email verification is not required for sign-in.
+
+The default `EMAIL_FROM=onboarding@resend.dev` is Resend's test domain. With it, you can only send emails to the address tied to your Resend account. To send to any address, verify a domain at [resend.com/domains](https://resend.com/domains) and update `EMAIL_FROM` to a sender address on that domain.
 
 ### Security model
 
