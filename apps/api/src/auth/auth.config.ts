@@ -34,6 +34,13 @@ export function createAuth(prisma: PrismaClient) {
     },
     socialProviders,
     trustedOrigins: [env.CORS_ORIGIN],
+    session: {
+      cookieCache: {
+        enabled: true,
+        maxAge: 5 * 60, // 5 minutes
+        strategy: 'jwe', // fully encrypted; not readable by clients
+      },
+    },
   });
 }
 

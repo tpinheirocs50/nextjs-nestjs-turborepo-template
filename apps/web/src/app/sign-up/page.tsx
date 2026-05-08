@@ -63,7 +63,11 @@ export default function SignUpPage() {
   return (
     <main style={{ padding: "2rem", fontFamily: "system-ui", maxWidth: 400 }}>
       <h1>Sign up</h1>
-      <form onSubmit={handleSubmit} style={{ display: "grid", gap: "1rem" }}>
+      <form
+        onSubmit={handleSubmit}
+        method="post"
+        style={{ display: "grid", gap: "1rem" }}
+      >
         <label>
           Name
           <input
