@@ -46,9 +46,13 @@ A production-ready monorepo template with **Next.js 16**, **NestJS 11**, **Prism
 # Install dependencies
 pnpm install
 
-# Copy env example files
+# Copy env example files (per-app for local dev)
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env
+
+# Generate a strong session secret. Use the same value in both
+# apps/api/.env and apps/web/.env — they must match.
+openssl rand -base64 32
 
 # Start Postgres and apply migrations
 pnpm db:setup
@@ -66,7 +70,19 @@ This launches:
 - NestJS on [http://localhost:3001](http://localhost:3001)
 - Postgres on `localhost:5432` (in Docker)
 
-Open [http://localhost:3000](http://localhost:3000) — you'll see the web app calling the API. Hit [http://localhost:3001/users](http://localhost:3001/users) directly to see Prisma returning the seeded demo user from Postgres.
+### Running the full stack in Docker
+
+`pnpm docker:up` builds and runs everything — Postgres, the api, the web app, and the migration job — using the production Dockerfiles. This requires a root `.env` file (separate from the per-app `.env` files used by `pnpm dev`):
+
+```bash
+# Only needed for the Docker workflow
+cp .env.example .env
+# Edit .env and set BETTER_AUTH_SECRET to a strong value
+# (use the same value as in apps/api/.env)
+pnpm docker:up
+```
+
+The root `.env` is auto-loaded by Docker Compose. Per-app `.env` files are NOT used by Docker.
 
 ## Scripts
 
@@ -78,7 +94,6 @@ All scripts run from the repo root and operate across the workspace via Turborep
 | `pnpm build` | Build all apps and packages for production |
 | `pnpm lint` | Lint all apps |
 | `pnpm type-check` | Type-check all packages |
-| `pnpm test` | Run tests across the workspace |
 | `pnpm verify` | Clean install + build + lint + type-check (use this in CI) |
 | `pnpm db:up` | Start the local Postgres database (Docker) |
 | `pnpm db:down` | Stop the database (data persists) |
@@ -97,7 +112,7 @@ Run a script in a specific package only:
 
 ```bash
 pnpm --filter web dev
-pnpm --filter api test
+pnpm --filter api build
 ```
 
 ## Environment variables
@@ -336,6 +351,10 @@ The secret is shared between api and web (both read `BETTER_AUTH_SECRET`) so the
 
 To shorten the revocation lag, reduce `session.cookieCache.maxAge` in `apps/api/src/auth/auth.config.ts`. To disable the cache entirely (every check hits the DB), remove the `cookieCache` block.
 
+### A note on `bodyParser`
+
+The api boots with `bodyParser: false` in `main.ts`. This is required by Better Auth, which needs access to raw request bodies to handle authentication payloads. The `@thallesp/nestjs-better-auth` library automatically re-registers the standard JSON/url-encoded body parsers for non-auth routes, so adding new controllers does not require any extra configuration.
+
 ### Where things live
 
 - `apps/api/src/auth/auth.config.ts` — runtime Better Auth config (factory taking `PrismaService`)
@@ -508,7 +527,7 @@ If you're consuming it from a Next.js app, remember to add the package name to `
 
 ## Turborepo caching
 
-Turborepo caches the output of `build`, `lint`, `type-check`, and `test` based on file content. Re-running a task with no changes is near-instant.
+Turborepo caches the output of `build`, `lint`, and `type-check` based on file content. Re-running a task with no changes is near-instant.
 
 To enable **remote caching** (free for repos linked to Vercel):
 
