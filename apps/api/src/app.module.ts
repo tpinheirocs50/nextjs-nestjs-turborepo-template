@@ -7,6 +7,7 @@ import { env } from './env';
 import { PrismaModule } from './prisma/prisma.module';
 import { PrismaService } from './prisma/prisma.service';
 import { MeController } from './me/me.controller';
+import { EchoController } from './echo/echo.controller';
 
 @Module({
   imports: [
@@ -40,7 +41,7 @@ import { MeController } from './me/me.controller';
       }),
     }),
   ],
-  controllers: [AppController, MeController],
+  controllers: [AppController, MeController, EchoController],
   providers: [],
 })
 export class AppModule {}

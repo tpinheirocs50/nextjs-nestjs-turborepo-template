@@ -30,6 +30,11 @@ COPY packages/api-client ./packages/api-client
 # Build with the api URL set via build arg (browser-visible vars must exist at build time)
 ARG NEXT_PUBLIC_API_URL=http://localhost:3001
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# Server-side secret used by the proxy. Must match the api's BETTER_AUTH_SECRET at runtime.
+# Provided as build arg so the prerender step (which runs the server env schema) can validate it.
+# At runtime, this is overridden by the BETTER_AUTH_SECRET env var passed via docker-compose.
+ARG BETTER_AUTH_SECRET=development-secret-at-least-32-characters-long
+ENV BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
 ENV NEXT_TELEMETRY_DISABLED=1
 
 WORKDIR /workspace/apps/web

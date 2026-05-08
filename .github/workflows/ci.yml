@@ -23,6 +23,7 @@ jobs:
         run: pnpm verify
         env:
           DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+          BETTER_AUTH_SECRET: ci-build-placeholder-must-be-at-least-32-chars
 
   docker:
     name: docker

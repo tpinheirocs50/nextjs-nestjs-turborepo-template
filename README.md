@@ -322,6 +322,20 @@ Without these env vars, the GitHub provider is silently skipped.
 
 To add other OAuth providers (Apple, etc.), follow the same pattern in `apps/api/src/auth/auth.config.ts` — Better Auth's `socialProviders` config accepts any of its [supported providers](https://better-auth.com/docs/concepts/oauth).
 
+### Security model
+
+Authentication uses three coordinated layers:
+
+1. **Database-backed sessions** — every sign-in creates a row in the `Session` table with an opaque token (`better-auth.session_token` cookie). Sign-out / revocation deletes the row.
+
+2. **Signed cookie cache** — the api also issues a `better-auth.session_data` cookie containing the session payload, encrypted with `BETTER_AUTH_SECRET` using JWE. The proxy uses this for **strict signature verification on every protected route navigation**, no database call required. The cache refreshes from the database every 5 minutes.
+
+3. **Global `AuthGuard` on the api** — every NestJS endpoint is protected by default. Routes mark themselves public via `@AllowAnonymous()` (`/health`, `/echo`) or fall through the guard with full session validation.
+
+The secret is shared between api and web (both read `BETTER_AUTH_SECRET`) so the proxy can verify cookies signed by the api. Clients never see the secret. The cookie payload is fully encrypted, not just signed.
+
+To shorten the revocation lag, reduce `session.cookieCache.maxAge` in `apps/api/src/auth/auth.config.ts`. To disable the cache entirely (every check hits the DB), remove the `cookieCache` block.
+
 ### Where things live
 
 - `apps/api/src/auth/auth.config.ts` — runtime Better Auth config (factory taking `PrismaService`)
@@ -363,6 +377,19 @@ export class MeController {
 ```
 
 By default, the `AuthModule` registers a global guard that protects all routes. Mark routes as public with `@AllowAnonymous()` or as optional auth with `@OptionalAuth()` from the same package.
+
+## Request validation
+
+The api uses **[class-validator](https://github.com/typestack/class-validator)** + **[class-transformer](https://github.com/typestack/class-transformer)** for request body, query, and param validation. A global `ValidationPipe` is registered in `apps/api/src/main.ts` with these settings:
+
+- `whitelist: true` — silently strips properties not on the DTO
+- `forbidNonWhitelisted: true` — rejects requests containing extra properties
+- `transform: true` — converts plain JSON to typed DTO instances
+- `enableImplicitConversion: true` — coerces query string values to their declared types
+
+Together these prevent mass-assignment attacks, enforce schemas at the HTTP boundary, and give you fully typed body/query/params inside controllers without manual parsing.
+
+A working example lives at `apps/api/src/echo/echo.controller.ts` — a public POST endpoint demonstrating valid/invalid request handling.
 
 ## Docker
 

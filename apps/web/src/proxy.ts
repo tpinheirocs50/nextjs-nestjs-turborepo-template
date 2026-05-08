@@ -1,10 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getSessionCookie } from "better-auth/cookies";
+import { getCookieCache } from "better-auth/cookies";
+import { env } from "@/env";
 
-export function proxy(request: NextRequest) {
-  const sessionCookie = getSessionCookie(request);
+export async function proxy(request: NextRequest) {
+  const session = await getCookieCache(request, {
+    secret: env.BETTER_AUTH_SECRET,
+    strategy: "jwe",
+  });
 
-  if (!sessionCookie) {
+  if (!session) {
     const signInUrl = new URL("/sign-in", request.url);
     return NextResponse.redirect(signInUrl);
   }
