@@ -628,6 +628,12 @@ The generated client is regenerated automatically on `pnpm install` (via the api
 **`fetch failed` / `ECONNREFUSED` from the web container when running the full Docker stack.**
 The web app uses `NEXT_PUBLIC_API_URL` for browser calls and `INTERNAL_API_URL` for server-side calls. Make sure both are set in `docker-compose.yml`'s `web` service — `NEXT_PUBLIC_API_URL=http://localhost:3001` and `INTERNAL_API_URL=http://api:3001`. Without `INTERNAL_API_URL`, Server Components try to reach the api at `localhost` from inside the web container, which doesn't work.
 
+**Dashboard always redirects to sign-in when running `pnpm docker:up` (works fine in `pnpm dev`).**
+Better Auth's `getCookieCache` helper defaults to looking for `__Secure-`-prefixed cookies when `NODE_ENV=production`. The api, however, determines the cookie prefix from the URL scheme of `BETTER_AUTH_URL` — `http://` means no prefix, `https://` means `__Secure-`. In Docker the app runs with `NODE_ENV=production` but `BETTER_AUTH_URL=http://localhost:3001`, so the api writes an unprefixed `better-auth.session_data` cookie while the proxy looks for `__Secure-better-auth.session_data`. The proxy's `getCookieCache` call passes an explicit `isSecure` flag derived from the request URL/`x-forwarded-proto` header to resolve the mismatch. If you ever hit this again after upgrading Better Auth, check the `isSecure` parameter in `apps/web/src/proxy.ts`.
+
+**`Failed to execute 'fetch' on 'Window': Illegal invocation` on the dashboard.**
+`ApiClient` stored `fetch` as a plain property reference (`this.fetchImpl = fetch`). When called later as `this.fetchImpl(url, init)`, the receiver is the `ApiClient` instance rather than `globalThis`, which the browser rejects. The fix is `fetch.bind(globalThis)` in `packages/api-client/src/client.ts`.
+
 **Docker image for the api is unexpectedly large.**
 Prisma 7 has a [known dependency-graph regression](https://github.com/prisma/prisma/discussions/28787) that bloats the production image by ~50MB. The Dockerfile already strips `@prisma/dev`, `@prisma/studio-core`, and similar dev-only packages post-install. If the issue is fixed upstream in a future Prisma release, you can remove the cleanup step in `apps/api/Dockerfile`.
 
