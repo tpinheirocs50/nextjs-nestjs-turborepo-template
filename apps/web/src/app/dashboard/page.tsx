@@ -3,21 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession, signOut } from "@/lib/auth-client";
-import { env } from "@/env";
-
-interface Me {
-  user: {
-    id: string;
-    email: string;
-    name: string;
-    emailVerified: boolean;
-    image: string | null;
-  };
-  session: {
-    id: string;
-    expiresAt: string;
-  };
-}
+import { api } from "@/lib/api";
+import type { Me } from "@repo/shared-types";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -28,13 +15,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!session) return;
 
-    fetch(`${env.NEXT_PUBLIC_API_URL}/me`, { credentials: "include" })
-      .then(async (res) => {
-        if (!res.ok) {
-          throw new Error(`API returned ${res.status}`);
-        }
-        return res.json();
-      })
+    api.me.get({ credentials: "include" })
       .then((data: Me) => setMe(data))
       .catch((err: unknown) =>
         setMeError(err instanceof Error ? err.message : "Failed to fetch /me"),
