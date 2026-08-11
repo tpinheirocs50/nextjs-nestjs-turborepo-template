@@ -4,7 +4,8 @@ services:
     container_name: monorepo_postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      # Bind to loopback only — never expose Postgres (default creds) to the LAN
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -49,7 +50,9 @@ services:
       migrate:
         condition: service_completed_successfully
     ports:
-      - "3001:3001"
+      # Loopback only — this stack is a local production-shaped test harness,
+      # not something to expose on the LAN
+      - "127.0.0.1:3001:3001"
     environment:
       NODE_ENV: production
       PORT: 3001
@@ -72,14 +75,17 @@ services:
       dockerfile: apps/web/Dockerfile
       args:
         NEXT_PUBLIC_API_URL: http://localhost:3001
-        BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET is required - copy .env.example to .env at the repo root}
+        # The real secret is intentionally NOT passed at build time — build args
+        # persist in image metadata (`docker history`). The Dockerfile's dummy
+        # default satisfies build-time env validation; the runtime value below
+        # is what the proxy actually uses.
     container_name: monorepo_web
     restart: unless-stopped
     profiles: ["full"]
     depends_on:
       - api
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       NODE_ENV: production
       NEXT_PUBLIC_API_URL: http://localhost:3001

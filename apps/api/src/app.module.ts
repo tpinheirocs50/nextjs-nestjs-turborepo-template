@@ -16,6 +16,16 @@ import { EmailService } from './email/email.service';
     LoggerModule.forRoot({
       pinoHttp: {
         level: env.LOG_LEVEL,
+        // Session tokens and credentials must never land in logs — pino-http's
+        // default serializers include all request/response headers.
+        redact: {
+          paths: [
+            'req.headers.cookie',
+            'req.headers.authorization',
+            'res.headers["set-cookie"]',
+          ],
+          remove: true,
+        },
         transport:
           env.NODE_ENV === 'development'
             ? {

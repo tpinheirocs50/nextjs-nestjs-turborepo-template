@@ -4,6 +4,17 @@ import type { PrismaClient } from '../prisma/generated/client';
 import type { EmailService } from '../email/email.service';
 import { env } from '../env';
 
+// user.name is attacker-controlled at sign-up and the verification email can be
+// delivered to an address the attacker doesn't own — never interpolate it raw.
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export function createAuth(prisma: PrismaClient, email: EmailService) {
   const socialProviders: Parameters<typeof betterAuth>[0]['socialProviders'] =
     {};
@@ -47,11 +58,13 @@ export function createAuth(prisma: PrismaClient, email: EmailService) {
           `${env.CORS_ORIGIN}/dashboard`,
         );
 
+        const safeName = escapeHtml(user.name ?? '');
+
         await email.send({
           to: user.email,
           subject: 'Verify your email',
           html: `
-      <p>Hi ${user.name ?? ''},</p>
+      <p>Hi ${safeName},</p>
       <p>Click the link below to verify your email address:</p>
       <p><a href="${verifyUrl.toString()}">Verify email</a></p>
       <p>If you didn't create an account, you can safely ignore this email.</p>
