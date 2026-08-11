@@ -75,6 +75,12 @@ export function createAuth(prisma: PrismaClient, email: EmailService) {
     },
     socialProviders,
     trustedOrigins: [env.CORS_ORIGIN],
+    advanced: {
+      crossSubDomainCookies: {
+        enabled: env.COOKIE_DOMAIN !== undefined,
+        domain: env.COOKIE_DOMAIN,
+      },
+    },
     session: {
       cookieCache: {
         enabled: true,

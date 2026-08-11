@@ -107,6 +107,8 @@ All scripts run from the repo root and operate across the workspace via Turborep
 | `pnpm docker:up:detached` | Same as above, but run in the background |
 | `pnpm docker:down` | Stop and remove all containers |
 | `pnpm docker:logs` | Follow logs from all running containers |
+| `pnpm docker:prod` | Build and start the full stack with the production override (see [Self-hosted Docker Compose](#self-hosted-docker-compose)) |
+| `pnpm docker:prod:down` | Stop the production-override stack |
 
 Run a script in a specific package only:
 
@@ -367,6 +369,8 @@ The secret is shared between api and web (both read `BETTER_AUTH_SECRET`) so the
 
 To shorten the revocation lag, reduce `session.cookieCache.maxAge` in `apps/api/src/auth/auth.config.ts`. To disable the cache entirely (every check hits the DB), remove the `cookieCache` block.
 
+On top of these layers, the api serves [helmet](https://helmetjs.github.io/)'s default security headers, the web app sets `X-Content-Type-Options`, `X-Frame-Options`, and `Referrer-Policy` via `next.config.ts`, and the api's logger redacts `Cookie`, `Authorization`, and `Set-Cookie` headers so session tokens never end up in logs.
+
 ### A note on `bodyParser`
 
 The api boots with `bodyParser: false` in `main.ts`. This is required by Better Auth, which needs access to raw request bodies to handle authentication payloads. The `@thallesp/nestjs-better-auth` library automatically re-registers the standard JSON/url-encoded body parsers for non-auth routes, so adding new controllers does not require any extra configuration.
@@ -578,6 +582,33 @@ docker build -f apps/web/Dockerfile --build-arg NEXT_PUBLIC_API_URL=https://api.
 ```
 
 Push to your registry, deploy. Provide `DATABASE_URL`, `CORS_ORIGIN`, and other env vars at runtime via your platform's secret manager. Run migrations as a separate one-shot job (the `migrate` service in `docker-compose.yml` shows the pattern).
+
+### Self-hosted Docker Compose
+
+`docker-compose.prod.yml` is a [Compose override](https://docs.docker.com/compose/multiple-compose-files/merge/) that adapts the local full-stack profile for a public deployment on a single host:
+
+```bash
+cp .env.example .env
+# Set BETTER_AUTH_SECRET (fresh one for production — openssl rand -base64 32),
+# PUBLIC_WEB_URL, PUBLIC_API_URL, and COOKIE_DOMAIN
+pnpm docker:prod
+```
+
+On top of `docker-compose.yml` it overrides three things:
+
+- **`CORS_ORIGIN` ← `PUBLIC_WEB_URL`** (e.g. `https://app.example.com`) — the api's CORS allowlist and Better Auth's trusted origin
+- **`BETTER_AUTH_URL` ← `PUBLIC_API_URL`** (e.g. `https://api.example.com`) — the `https://` scheme switches session cookies to `__Secure-`-prefixed with the `Secure` attribute
+- **The web image is rebuilt** with `NEXT_PUBLIC_API_URL=$PUBLIC_API_URL` baked in, so the browser calls the public api URL; server-side calls keep using the container-network `INTERNAL_API_URL`
+
+**`COOKIE_DOMAIN`** (e.g. `.example.com`) enables Better Auth's [cross-subdomain cookies](https://better-auth.com/docs/concepts/cookies). Without it, cookies set by `api.example.com` are host-only and the browser never sends them to `app.example.com`, so the web proxy can't see the session and every `/dashboard` visit redirects to sign-in. With it, the session cookie is scoped to the parent domain and both hosts receive it.
+
+> [!WARNING]
+> A `Domain=example.com` cookie is sent to **every** subdomain of that apex. Only use a domain whose subdomains you fully control — don't park untrusted or third-party apps under it.
+
+What this file deliberately does **not** provide:
+
+- **TLS.** Run a TLS-terminating reverse proxy (Caddy, nginx, Traefik, or your platform's load balancer) in front of both apps, and make sure it sets `x-forwarded-proto: https` — the web proxy's cookie-prefix detection depends on it. The containers bind to loopback only (`127.0.0.1:3000` / `127.0.0.1:3001`), which pairs naturally with a reverse proxy on the same host.
+- **A different topology.** Web and api must be sibling subdomains of one registrable domain — session cookies are `SameSite=Lax` and `COOKIE_DOMAIN` must cover both hosts. Splitting across unrelated domains (e.g. `*.vercel.app` + `*.railway.app`) breaks cookie flow.
 
 ### Vercel + managed backend
 

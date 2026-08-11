@@ -16,7 +16,9 @@
     "docker:up": "docker compose --profile full up",
     "docker:up:detached": "docker compose --profile full up -d",
     "docker:down": "docker compose --profile full down",
-    "docker:logs": "docker compose --profile full logs -f"
+    "docker:logs": "docker compose --profile full logs -f",
+    "docker:prod": "docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile full up -d --build",
+    "docker:prod:down": "docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile full down"
   },
   "devDependencies": {
     "turbo": "2.9.9",
