@@ -1,0 +1,17 @@
+# Production override for the full-stack profile. Layer it on top of the base
+# file — `pnpm docker:prod` — after setting PUBLIC_WEB_URL, PUBLIC_API_URL,
+# and COOKIE_DOMAIN in the root .env. Expects a TLS-terminating reverse proxy
+# on the same host. See README "Self-hosted Docker Compose".
+services:
+  api:
+    environment:
+      CORS_ORIGIN: ${PUBLIC_WEB_URL:?e.g. https://app.example.com}
+      BETTER_AUTH_URL: ${PUBLIC_API_URL:?e.g. https://api.example.com}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:?e.g. .example.com}
+
+  web:
+    build:
+      args:
+        NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL}
+    environment:
+      NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL}

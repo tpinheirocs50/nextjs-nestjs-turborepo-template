@@ -36,7 +36,16 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((v) => (v === '' ? undefined : v)),
-  EMAIL_FROM: z.string().email().default('onboarding@resend.dev'),
+  EMAIL_FROM: z.preprocess(
+    // An empty string (EMAIL_FROM= in .env) must fall back to the default,
+    // not fail .email() validation
+    (v) => (v === '' ? undefined : v),
+    z.email().default('onboarding@resend.dev'),
+  ),
+  COOKIE_DOMAIN: z
+    .string()
+    .optional()
+    .transform((v) => (v === '' ? undefined : v)),
 });
 
 const parsed = envSchema.safeParse(process.env);

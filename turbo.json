@@ -21,7 +21,8 @@
         "GITHUB_CLIENT_ID",
         "GITHUB_CLIENT_SECRET",
         "RESEND_API_KEY",
-        "EMAIL_FROM"
+        "EMAIL_FROM",
+        "COOKIE_DOMAIN"
       ]
     },
     "dev": {
