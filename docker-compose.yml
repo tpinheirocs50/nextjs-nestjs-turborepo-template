@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:18-alpine
-    profiles: ["dev"]
+    profiles: ["dev", "full"]
     container_name: monorepo_postgres
     restart: unless-stopped
     ports:
@@ -26,6 +26,9 @@ services:
       target: builder
     container_name: monorepo_migrate
     profiles: ["full"]
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required - set it in .env}
     working_dir: /workspace/apps/api
