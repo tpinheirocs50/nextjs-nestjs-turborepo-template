@@ -22,7 +22,7 @@ jobs:
       - name: Verify
         run: pnpm verify
         env:
-          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+          DATABASE_URL: postgresql://postgres:postgres@postgres:5432/monorepo
           BETTER_AUTH_SECRET: ci-build-placeholder-must-be-at-least-32-chars
 
   docker:
