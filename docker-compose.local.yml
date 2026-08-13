@@ -9,12 +9,19 @@
 # Because this file owns the postgres service, it also owns migrate's dependency
 # on it: without the overlay, migrate runs as soon as it is started, which is
 # exactly what you want when the database lives elsewhere.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   postgres:
     image: postgres:18-alpine
     profiles: ["dev", "full"]
     container_name: monorepo_postgres
     restart: unless-stopped
+    logging: *default-logging
     ports:
       # Bind to loopback only — never expose Postgres to the LAN
       - "127.0.0.1:5432:5432"

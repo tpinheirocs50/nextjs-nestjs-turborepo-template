@@ -3,8 +3,19 @@
 # This file has no database of its own. Layer docker-compose.local.yml on top
 # for a bundled Postgres (what every `pnpm db:*` and `pnpm docker:*` script
 # does), or point DATABASE_URL at a managed one for deployment.
+
+# Docker's default json-file driver never rotates. On a long-running host with
+# per-request JSON logs that quietly fills the root volume, so every service
+# caps its own log footprint at 30MB.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   migrate:
+    logging: *default-logging
     build:
       context: .
       dockerfile: apps/api/Dockerfile
@@ -25,6 +36,7 @@ services:
     container_name: monorepo_api
     restart: unless-stopped
     profiles: ["full"]
+    logging: *default-logging
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -61,8 +73,12 @@ services:
     container_name: monorepo_web
     restart: unless-stopped
     profiles: ["full"]
+    logging: *default-logging
     depends_on:
-      - api
+      # service_started only waits for the container to exist. The api needs to
+      # be answering requests before web's server-side calls can succeed.
+      api:
+        condition: service_healthy
     ports:
       - "127.0.0.1:3000:3000"
     environment:
