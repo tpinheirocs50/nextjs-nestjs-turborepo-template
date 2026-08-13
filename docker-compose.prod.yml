@@ -1,10 +1,24 @@
 # Production override for the full-stack profile. Layer it on top of the base
-# file — `pnpm docker:prod` — after setting PUBLIC_WEB_URL, PUBLIC_API_URL,
-# and COOKIE_DOMAIN in the root .env. Expects a TLS-terminating reverse proxy
-# on the same host. See README "Self-hosted Docker Compose".
+# file — `pnpm docker:prod` — after setting DATABASE_URL, PUBLIC_WEB_URL,
+# PUBLIC_API_URL and COOKIE_DOMAIN in the root .env. Expects a TLS-terminating
+# reverse proxy on the same host. See README "Self-hosted Docker Compose".
+#
+# docker-compose.local.yml is deliberately absent here: production uses a
+# managed database, so no Postgres container is started.
+#
+# Every variable below is `:?`-guarded on purpose. The base file gives
+# DATABASE_URL a convenient default pointing at the bundled Postgres, which is
+# right for development but dangerous here — a typo or a missing .env line
+# would otherwise deploy silently against a throwaway container that passes
+# every health check.
 services:
+  migrate:
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?set this to your managed database, e.g. postgresql://user:pass@host:5432/db?sslmode=verify-full}
+
   api:
     environment:
+      DATABASE_URL: ${DATABASE_URL:?set this to your managed database, e.g. postgresql://user:pass@host:5432/db?sslmode=verify-full}
       CORS_ORIGIN: ${PUBLIC_WEB_URL:?e.g. https://app.example.com}
       BETTER_AUTH_URL: ${PUBLIC_API_URL:?e.g. https://api.example.com}
       COOKIE_DOMAIN: ${COOKIE_DOMAIN:?e.g. .example.com}
@@ -12,6 +26,6 @@ services:
   web:
     build:
       args:
-        NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL}
+        NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:?e.g. https://api.example.com}
     environment:
-      NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL}
+      NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:?e.g. https://api.example.com}

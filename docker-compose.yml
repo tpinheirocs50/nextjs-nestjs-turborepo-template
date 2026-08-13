@@ -1,24 +1,9 @@
+# The application stack: migrations, api, web.
+#
+# This file has no database of its own. Layer docker-compose.local.yml on top
+# for a bundled Postgres (what every `pnpm db:*` and `pnpm docker:*` script
+# does), or point DATABASE_URL at a managed one for deployment.
 services:
-  postgres:
-    image: postgres:18-alpine
-    profiles: ["dev", "full"]
-    container_name: monorepo_postgres
-    restart: unless-stopped
-    ports:
-      # Bind to loopback only — never expose Postgres (default creds) to the LAN
-      - "127.0.0.1:5432:5432"
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: monorepo
-    volumes:
-      - postgres_data:/var/lib/postgresql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-
   migrate:
     build:
       context: .
@@ -26,19 +11,11 @@ services:
       target: migrate
     container_name: monorepo_migrate
     profiles: ["full"]
-    depends_on:
-      postgres:
-        condition: service_healthy
     environment:
-      # Defaults to the bundled postgres service; override in .env to use an
-      # external database (the URL must be reachable from inside the container,
-      # so `localhost` won't work — use a hostname or the `postgres` service).
+      # Defaults to the bundled postgres service from docker-compose.local.yml;
+      # override in .env to use an external database. The URL is resolved from
+      # inside the container, so `localhost` won't work — use a hostname.
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/monorepo}
-    working_dir: /workspace/apps/api
-    entrypoint: ["sh", "-c"]
-    command:
-      - |
-        pnpm exec prisma migrate deploy
 
   api:
     image: nextjs-nestjs-turborepo-template-api:latest
@@ -93,6 +70,3 @@ services:
       NEXT_PUBLIC_API_URL: http://localhost:3001
       INTERNAL_API_URL: http://api:3001
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET is required - copy .env.example to .env at the repo root}
-
-volumes:
-  postgres_data:

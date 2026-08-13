@@ -36,10 +36,10 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Build images
-        run: docker compose --profile full build
+        run: docker compose -f docker-compose.yml -f docker-compose.local.yml --profile full build
 
       - name: Start the stack
-        run: docker compose --profile full up -d
+        run: docker compose -f docker-compose.yml -f docker-compose.local.yml --profile full up -d
 
       - name: Wait for the stack to be ready
         run: |
@@ -54,8 +54,8 @@ jobs:
             sleep 2
           done
           echo "Stack failed to become healthy"
-          docker compose --profile full ps
-          docker compose --profile full logs
+          docker compose -f docker-compose.yml -f docker-compose.local.yml --profile full ps
+          docker compose -f docker-compose.yml -f docker-compose.local.yml --profile full logs
           exit 1
 
       - name: Smoke-test endpoints
@@ -75,8 +75,8 @@ jobs:
 
       - name: Show logs (on failure)
         if: failure()
-        run: docker compose --profile full logs
+        run: docker compose -f docker-compose.yml -f docker-compose.local.yml --profile full logs
 
       - name: Tear down
         if: always()
-        run: docker compose --profile full down -v
+        run: docker compose -f docker-compose.yml -f docker-compose.local.yml --profile full down -v

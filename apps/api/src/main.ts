@@ -30,6 +30,9 @@ async function bootstrap() {
       },
     }),
   );
+  // Without this Nest never installs SIGTERM/SIGINT handlers, so `docker stop`
+  // and every redeploy sever in-flight requests and skip Prisma's $disconnect.
+  app.enableShutdownHooks();
   await app.listen(env.PORT);
 }
 void bootstrap();
