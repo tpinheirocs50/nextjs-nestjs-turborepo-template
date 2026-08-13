@@ -488,13 +488,22 @@ The api image is heavier than ideal due to [Prisma 7's bloated dependency graph]
 
 ### Profile-based separation
 
-The `docker-compose.yml` uses Compose [profiles](https://docs.docker.com/compose/profiles/) so the dev workflow keeps working unchanged:
+Three files compose the stack, and which two you layer decides where the database lives:
 
-- **`dev` profile** — only Postgres runs. This is what `pnpm db:up` invokes via `docker compose --profile dev up -d`.
-- **`full` profile** — runs Postgres + migrate + api + web. This is what `pnpm docker:up` invokes via `docker compose --profile full up`.
+| File | Contains | Layered by |
+| --- | --- | --- |
+| `docker-compose.yml` | migrate + api + web — no database | always (the base) |
+| `docker-compose.local.yml` | the bundled Postgres, and migrate's dependency on it | `pnpm db:*`, `pnpm docker:*`, CI |
+| `docker-compose.prod.yml` | public URLs, cookie domain, required `DATABASE_URL` | `pnpm docker:prod` |
 
-Every service belongs to at least one profile, so a bare `docker compose up` selects nothing — always go through the
-`pnpm` scripts, or pass `--profile` yourself.
+Within the local pair, Compose [profiles](https://docs.docker.com/compose/profiles/) pick how much runs:
+
+- **`dev` profile** — only Postgres. This is what `pnpm db:up` invokes.
+- **`full` profile** — Postgres + migrate + api + web. This is what `pnpm docker:up` invokes.
+
+Two consequences worth knowing. Every service belongs to a profile, so a bare `docker compose up` selects nothing —
+go through the `pnpm` scripts, or pass both `-f` flags and a `--profile` yourself. And production runs no Postgres
+container at all, because `docker-compose.prod.yml` never layers in `docker-compose.local.yml`.
 
 This means you don't have to choose between "compose for dev" and "compose for production-shape testing" — one file does both.
 
@@ -592,16 +601,32 @@ Push to your registry, deploy. Provide `DATABASE_URL`, `CORS_ORIGIN`, and other 
 
 ```bash
 cp .env.example .env
-# Set BETTER_AUTH_SECRET (fresh one for production — openssl rand -base64 32),
-# PUBLIC_WEB_URL, PUBLIC_API_URL, and COOKIE_DOMAIN
+# Set DATABASE_URL (your managed database), BETTER_AUTH_SECRET (a fresh one for
+# production — openssl rand -base64 32), PUBLIC_WEB_URL, PUBLIC_API_URL, and
+# COOKIE_DOMAIN. Every one of them is required; Compose refuses to start
+# without it rather than falling back to a development default.
 pnpm docker:prod
 ```
 
-On top of `docker-compose.yml` it overrides three things:
+> [!IMPORTANT]
+> Also add `COMPOSE_FILE=docker-compose.yml:docker-compose.prod.yml` to that `.env`.
+> All production configuration lives in the override file, so a bare
+> `docker compose up -d` — the instinctive command after a reboot — would load
+> only the base file and silently revert `CORS_ORIGIN` and `BETTER_AUTH_URL` to
+> `localhost` while dropping `COOKIE_DOMAIN`, breaking auth for every user with
+> no visible error. `COMPOSE_FILE` makes Compose read both files by default, so
+> the plain command stays correct.
 
+On top of `docker-compose.yml` it overrides four things:
+
+- **`DATABASE_URL` becomes required.** The base file defaults it to the bundled Postgres, which is right for development and dangerous in production — a typo would otherwise deploy against a throwaway container that passes every health check. Note the prod file does *not* layer in `docker-compose.local.yml`, so no Postgres container runs at all.
 - **`CORS_ORIGIN` ← `PUBLIC_WEB_URL`** (e.g. `https://app.example.com`) — the api's CORS allowlist and Better Auth's trusted origin
 - **`BETTER_AUTH_URL` ← `PUBLIC_API_URL`** (e.g. `https://api.example.com`) — the `https://` scheme switches session cookies to `__Secure-`-prefixed with the `Secure` attribute
 - **The web image is rebuilt** with `NEXT_PUBLIC_API_URL=$PUBLIC_API_URL` baked in, so the browser calls the public api URL; server-side calls keep using the container-network `INTERNAL_API_URL`
+
+Against AWS RDS, append `?sslmode=verify-full` to `DATABASE_URL`. The api image ships Amazon's RDS CA bundle
+via `NODE_EXTRA_CA_CERTS` precisely so this verifies cleanly; without an `sslmode` the connection is unverified,
+and unencrypted unless the RDS parameter group forces TLS.
 
 **`COOKIE_DOMAIN`** (e.g. `.example.com`) enables Better Auth's [cross-subdomain cookies](https://better-auth.com/docs/concepts/cookies). Without it, cookies set by `api.example.com` are host-only and the browser never sends them to `app.example.com`, so the web proxy can't see the session and every `/dashboard` visit redirects to sign-in. With it, the session cookie is scoped to the parent domain and both hosts receive it.
 
