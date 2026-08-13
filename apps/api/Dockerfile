@@ -37,6 +37,23 @@ RUN DATABASE_URL=postgresql://placeholder:placeholder@localhost:5432/placeholder
     pnpm exec prisma generate
 RUN pnpm build
 
+# ---- Migrate ----
+FROM base AS migrate
+WORKDIR /workspace
+
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc* ./
+COPY apps/api/package.json ./apps/api/
+COPY packages/shared-types/package.json ./packages/shared-types/
+
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter api... --ignore-scripts
+
+COPY apps/api ./apps/api
+COPY packages/shared-types ./packages/shared-types
+
+WORKDIR /workspace/apps/api
+ENTRYPOINT ["pnpm", "exec", "prisma", "migrate", "deploy"]
+
 # ---- Deploy (self-contained prod node_modules) ----
 # pnpm deploy produces a flat, self-contained directory with only the
 # packages api actually uses at runtime — no shared pnpm store, no

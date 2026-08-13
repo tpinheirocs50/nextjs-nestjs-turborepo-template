@@ -23,7 +23,7 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
-      target: builder
+      target: migrate
     container_name: monorepo_migrate
     profiles: ["full"]
     depends_on:
