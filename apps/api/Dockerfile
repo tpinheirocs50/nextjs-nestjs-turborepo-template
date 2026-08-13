@@ -1,11 +1,18 @@
 # syntax=docker/dockerfile:1.7
 # ---- Base ----
-FROM node:20-alpine AS base
+FROM node:24-alpine AS base
 ENV PNPM_HOME="/pnpm" \
     PATH="/pnpm:$PATH"
 RUN corepack enable
 RUN corepack prepare pnpm@9.15.0 --activate
-RUN apk add --no-cache libc6-compat openssl
+RUN apk add --no-cache libc6-compat openssl ca-certificates
+# Amazon's RDS CA chain isn't in Node's bundled trust store, so pg's
+# certificate verification fails with "self-signed certificate in
+# certificate chain". NODE_EXTRA_CA_CERTS appends rather than replaces,
+# so Resend/OAuth TLS keeps working.
+RUN wget -qO /usr/local/share/ca-certificates/rds-global-bundle.crt \
+    https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
+ENV NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/rds-global-bundle.crt
 
 # ---- Builder ----
 FROM base AS builder
@@ -29,6 +36,23 @@ WORKDIR /workspace/apps/api
 RUN DATABASE_URL=postgresql://placeholder:placeholder@localhost:5432/placeholder \
     pnpm exec prisma generate
 RUN pnpm build
+
+# ---- Migrate ----
+FROM base AS migrate
+WORKDIR /workspace
+
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc* ./
+COPY apps/api/package.json ./apps/api/
+COPY packages/shared-types/package.json ./packages/shared-types/
+
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
+    pnpm install --frozen-lockfile --filter api... --ignore-scripts
+
+COPY apps/api ./apps/api
+COPY packages/shared-types ./packages/shared-types
+
+WORKDIR /workspace/apps/api
+ENTRYPOINT ["pnpm", "exec", "prisma", "migrate", "deploy"]
 
 # ---- Deploy (self-contained prod node_modules) ----
 # pnpm deploy produces a flat, self-contained directory with only the
