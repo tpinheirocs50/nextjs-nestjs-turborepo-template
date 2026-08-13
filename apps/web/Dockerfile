@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 # ---- Base ----
-FROM node:20-alpine AS base
+FROM node:24-alpine AS base
 ENV PNPM_HOME="/pnpm" \
     PATH="/pnpm:$PATH"
 RUN corepack enable

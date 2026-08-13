@@ -1,6 +1,7 @@
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
+    profiles: ["dev"]
     container_name: monorepo_postgres
     restart: unless-stopped
     ports:
@@ -11,7 +12,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: monorepo
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -25,11 +26,8 @@ services:
       target: builder
     container_name: monorepo_migrate
     profiles: ["full"]
-    depends_on:
-      postgres:
-        condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/monorepo
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required - set it in .env}
     working_dir: /workspace/apps/api
     entrypoint: ["sh", "-c"]
     command:
@@ -45,8 +43,6 @@ services:
     restart: unless-stopped
     profiles: ["full"]
     depends_on:
-      postgres:
-        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     ports:
@@ -58,7 +54,7 @@ services:
       PORT: 3001
       LOG_LEVEL: info
       CORS_ORIGIN: http://localhost:3000
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/monorepo
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required - set it in .env}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET is required - copy .env.example to .env at the repo root}
       BETTER_AUTH_URL: http://localhost:3001
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
