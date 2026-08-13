@@ -24,7 +24,7 @@ A production-ready monorepo template with **Next.js 16**, **NestJS 11**, **Prism
 - **[Next.js 16](https://nextjs.org/)** — React framework with App Router and Turbopack
 - **[NestJS 11](https://nestjs.com/)** — Progressive Node.js framework for the API
 - **[Prisma 7](https://www.prisma.io/)** — Type-safe database ORM with the new Rust-free client
-- **[PostgreSQL 17](https://www.postgresql.org/)** — Database, run locally via Docker
+- **[PostgreSQL 18](https://www.postgresql.org/)** — Database, run locally via Docker
 - **[Pino](https://getpino.io/) logging** — Structured JSON logs in production, pretty-printed in dev, request context auto-attached
 - **Typed API client** — End-to-end type safety between web and api via a shared client package, no manual fetch
 - **[Better Auth](https://better-auth.com/)** — Email/password authentication with secure cookie sessions, password hashing, and Prisma-backed user storage
@@ -36,7 +36,7 @@ A production-ready monorepo template with **Next.js 16**, **NestJS 11**, **Prism
 
 ## Prerequisites
 
-- **Node.js 20 LTS** or newer (an `.nvmrc` file is included — run `nvm use`)
+- **Node.js 24** or newer (an `.nvmrc` file is included — run `nvm use`)
 - **pnpm 9** or newer (`npm install -g pnpm`)
 - **Docker** with Docker Compose v2 (for Postgres in dev, and the full Docker workflow)
 
@@ -148,7 +148,7 @@ For the **web** app, prefix browser-visible vars with `NEXT_PUBLIC_` and add the
 
 ## Database
 
-The api uses **Prisma 7** with a local **PostgreSQL 17** instance running in Docker.
+The api uses **Prisma 7** with a local **PostgreSQL 18** instance running in Docker.
 
 ### Schema location
 
@@ -475,7 +475,7 @@ docker compose --profile full down -v
 
 ### How the migrate service works
 
-The `migrate` service is a one-shot job container — not a long-running service. It builds from the api's Dockerfile but stops at the `builder` stage (which still has the Prisma CLI), runs `prisma migrate deploy` against Postgres, and exits cleanly. The `api` service uses `depends_on: migrate: condition: service_completed_successfully` to wait until migrations finish before starting.
+The `migrate` service is a one-shot job container — not a long-running service. It builds from the api's Dockerfile but stops at the dedicated `migrate` stage (which still has the Prisma CLI), runs `prisma migrate deploy` against Postgres, and exits cleanly. The `api` service uses `depends_on: migrate: condition: service_completed_successfully` to wait until migrations finish before starting.
 
 This pattern mirrors how production deployments handle migrations on Kubernetes (Helm hooks), AWS ECS (run-task), or platform-managed services (Railway, Fly): a dedicated migration step runs before the app containers, and the app containers refuse to start if migrations fail. The compose setup gives you the same guarantees locally.
 
@@ -490,8 +490,11 @@ The api image is heavier than ideal due to [Prisma 7's bloated dependency graph]
 
 The `docker-compose.yml` uses Compose [profiles](https://docs.docker.com/compose/profiles/) so the dev workflow keeps working unchanged:
 
-- **No profile (default)** — only Postgres runs. This is what `pnpm db:up` invokes.
+- **`dev` profile** — only Postgres runs. This is what `pnpm db:up` invokes via `docker compose --profile dev up -d`.
 - **`full` profile** — runs Postgres + migrate + api + web. This is what `pnpm docker:up` invokes via `docker compose --profile full up`.
+
+Every service belongs to at least one profile, so a bare `docker compose up` selects nothing — always go through the
+`pnpm` scripts, or pass `--profile` yourself.
 
 This means you don't have to choose between "compose for dev" and "compose for production-shape testing" — one file does both.
 
