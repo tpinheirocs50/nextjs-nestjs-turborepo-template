@@ -52,6 +52,13 @@ COPY apps/api ./apps/api
 COPY packages/shared-types ./packages/shared-types
 
 WORKDIR /workspace/apps/api
+
+# Migrations hold DATABASE_URL and the full source tree; no reason to run them
+# as root when the runtime image doesn't.
+RUN addgroup -S nodejs && adduser -S migrator -G nodejs \
+    && chown -R migrator:nodejs /workspace
+USER migrator
+
 ENTRYPOINT ["pnpm", "exec", "prisma", "migrate", "deploy"]
 
 # ---- Deploy (self-contained prod node_modules) ----
@@ -81,4 +88,10 @@ COPY --from=builder --chown=nestjs:nodejs /workspace/apps/api/src/prisma/generat
 
 USER nestjs
 EXPOSE 3001
+
+# wget is a BusyBox applet in node:24-alpine — no curl, and nothing extra to
+# install. Gives Compose a real readiness signal instead of "container exists".
+HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=5 \
+    CMD wget -qO- "http://127.0.0.1:${PORT:-3001}/health" || exit 1
+
 CMD ["node", "dist/src/main.js"]

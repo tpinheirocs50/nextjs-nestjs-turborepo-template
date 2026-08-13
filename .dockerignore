@@ -12,10 +12,13 @@
 **/.turbo
 **/build
 
-# Environment files (secrets shouldn't go into images)
-**/.env
-**/.env.local
-**/.env.*.local
+# Environment files (secrets shouldn't go into images).
+# Deliberately a single catch-all: Next.js loads .env.production at build time
+# and copies whatever it loaded into .next/standalone, which the web Dockerfile
+# copies wholesale into the image. Listing filenames individually let
+# .env.production, .env.development and .env.test through.
+**/.env*
+!**/.env.example
 
 # IDE and OS
 .vscode
